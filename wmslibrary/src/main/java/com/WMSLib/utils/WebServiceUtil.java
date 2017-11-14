@@ -23,17 +23,6 @@ import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.FutureTask;
 
-/**
- * Description:
- * <br/>网站: <a href="http://www.crazyit.org">疯狂Java联盟</a>
- * <br/>Copyright (C), 2001-2014, Yeeku.H.Lee
- * <br/>This program is protected by copyright laws.
- * <br/>Program Name:
- * <br/>Date:
- *
- * @author Yeeku.H.Lee kongyeeku@163.com
- * @version 1.0
- */
 public class WebServiceUtil {
     // 定义Web Service的命名空间
     static final String SERVICE_NS = "http://tempuri.org/";

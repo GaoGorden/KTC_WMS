@@ -1,6 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.gordenyou.ktc_wms">
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.example.gordenyou.ktc_wms"
+    android:versionCode="2"
+    android:versionName="1.0"
+    tools:ignore="GradleOverrides">
+    <!--versionCode表示版本号，与服务器的版本号进行对比，然后提示用户是否更新。-->
+    <!--versionName = “1.0.0”一般由三位数字组成：-->
+    <!--第一位：表示的重大更新（界面，功能都发生重大变化）-->
+    <!--第二位：表示在原有程序基础上添加新的功能-->
+    <!--第三位：表示程序修复的BUG-->
+
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
 
     <application
         android:allowBackup="true"
