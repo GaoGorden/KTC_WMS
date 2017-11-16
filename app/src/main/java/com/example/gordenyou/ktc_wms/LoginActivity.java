@@ -1,5 +1,6 @@
 package com.example.gordenyou.ktc_wms;
 
+import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
@@ -11,7 +12,10 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
+import android.support.v4.app.ActivityCompat;
 import android.util.Log;
+import android.view.View;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import com.WMSLib.utils.StreamUtil;
@@ -33,9 +37,11 @@ import java.net.URL;
 
 public class LoginActivity extends Activity {
     private TextView tv_version_name;
+    private int AppVersioncode;
+    private String VersionName;
 
     private String TGA = "LoginActivity";
-    private String DownloadUrl = "";
+    private String DownloadUrl;
     private String AppDescription = "";
 
     private static final int UPDATE_VERSION = 100;
@@ -64,19 +70,46 @@ public class LoginActivity extends Activity {
         }
     };
 
+    private static final int REQUEST_EXTERNAL_STORAGE = 1;
+    private static String[] PERMISSIONS_STORAGE = {
+            Manifest.permission.READ_EXTERNAL_STORAGE,
+            Manifest.permission.WRITE_EXTERNAL_STORAGE
+    };
+
+    /**
+     * 权限申请
+     *
+     * @param activity
+     */
+    public static void verifyStoragePermissions(Activity activity) {
+// Check if we have write permission
+        int permission = ActivityCompat.checkSelfPermission(activity, Manifest.permission.WRITE_EXTERNAL_STORAGE);
+        if (permission != PackageManager.PERMISSION_GRANTED) {
+// We don't have permission so prompt the user
+            ActivityCompat.requestPermissions(
+                    activity,
+                    PERMISSIONS_STORAGE,
+                    REQUEST_EXTERNAL_STORAGE
+            );
+        }
+    }
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
         tv_version_name = findViewById(R.id.version_name);
+        verifyStoragePermissions(LoginActivity.this);
         initData();
 
 
     }
 
     private void initData() {
-        String version_name = getVersionName();
-        tv_version_name.setText("当前版本：");
+        AppVersioncode = getVersionCode();
+        VersionName = getVersionName();
+        tv_version_name.setText("当前版本：" + VersionName);
         CheckVersion();
     }
 
@@ -95,24 +128,17 @@ public class LoginActivity extends Activity {
                     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                     conn.setConnectTimeout(2000);
                     conn.setReadTimeout(2000);
-                    conn.setRequestMethod("Get");
-//                    if(conn.getResponseCode() == 200){
-                    if (true) {
+                    conn.setRequestMethod("GET");
+                    if (conn.getResponseCode() == 200) {
+//                    if (true) {
                         InputStream is = conn.getInputStream();
                         String json = StreamUtil.streamToString(is);
-//                        BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-//                        StringBuilder builder = new StringBuilder();
-//                        String line;
-//                        while ((line = reader.readLine()) != null) {
-//                            builder.append(line);
-//                        }
-//                        reader.close();
                         JSONObject jsonObject = new JSONObject(json);
                         DownloadUrl = jsonObject.getString("downloadUrl");
                         AppDescription = jsonObject.getString("versionDes");
                         String versionname = jsonObject.getString("versionName");
                         String versioncode = jsonObject.getString("versionCode");
-                        if (getVersionCode() < Integer.valueOf(versioncode)) {
+                        if (AppVersioncode < Integer.valueOf(versioncode)) {
                             msg.what = UPDATE_VERSION;
                         } else {
                             msg.what = ENTER_HOME;
@@ -152,56 +178,82 @@ public class LoginActivity extends Activity {
         builder.setIcon(R.drawable.ic_launcher_background);
         builder.setTitle("更新提示");
         builder.setMessage(AppDescription);
-        builder.setCancelable(false);//不可取消更新
+//        builder.setCancelable(false);//不可取消更新
         builder.setPositiveButton("立即更新", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
-                downloadApk();
+                Intent intent = new Intent(LoginActivity.this, DownloadActivity.class);
+                intent.putExtra("DownloadUrl", DownloadUrl);
+                startActivity(intent);
             }
         });
-//        builder.setNegativeButton("稍后更新", new DialogInterface.OnClickListener() {
-//            @Override
-//            public void onClick(DialogInterface dialogInterface, int i) {
-//                GoHome();
-//            }
-//        });
+        builder.setNegativeButton("稍后更新", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+            }
+        });
+        builder.show();
+    }
+
+    private void showDownloadDialog() {
+
     }
 
     private void downloadApk() {
         //首先判断SD卡是否可用，未写保护
+
         if (Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)) {
             //设置APK的保存路径
-            String path = Environment.getDownloadCacheDirectory().getAbsolutePath()
-                    + File.separator + "KTC_WMS.apk";
+            String path = Environment.getExternalStorageDirectory().
+                    getAbsolutePath() + File.separator + "KTC_WMS.apk";
             HttpUtils utils = new HttpUtils();
+            //请求下载（下载apk网络地址,apk保存路径，回调函数）
             utils.download(DownloadUrl, path, new RequestCallBack<File>() {
+                //下载成功调用方法
                 @Override
                 public void onSuccess(ResponseInfo<File> responseInfo) {
                     //下载的apk文件
                     File file = responseInfo.result;
-                    Log.i(TGA, "下载成功！");
+                    Log.i(TGA, "下载成功");
+                    //安装Apk
                     installApk(file);
                 }
 
+                //下载失败调用方法
                 @Override
-                public void onFailure(HttpException e, String s) {
-                    Log.i(TGA, "下载失败");
+                public void onFailure(HttpException arg0, String arg1) {
+                    Log.i(TGA, "下载失败" + arg0 + arg1);
                 }
 
+                //下载过程中调用方法
                 @Override
-                public void onLoading(long total, long current, boolean isUploading) {
-                    //这里要在状态栏显示进度！
+                public void onLoading(long total, long current,
+                                      boolean isUploading) {
+                    ProgressBar progressBar = new ProgressBar(LoginActivity.this);
+                    while (isUploading) {
+                        int now = (int) (current / total) * 100;
+                        progressBar.setProgress(now);
+                        progressBar.setVisibility(View.VISIBLE);
+                    }
+
+                    Log.i(TGA, "下载中....");
+                    Log.i(TGA, "total=" + total);
+                    Log.i(TGA, "current=" + current);
                     super.onLoading(total, current, isUploading);
                 }
 
+                //下载开始调用方法
                 @Override
                 public void onStart() {
                     Log.i(TGA, "下载开始");
                     super.onStart();
                 }
+
+
             });
         }
     }
+
 
     /**
      * 安装APK
